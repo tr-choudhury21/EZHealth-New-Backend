@@ -1,5 +1,4 @@
 import multer from "multer";
-import { v4 as uuidv4 } from "uuid";
 
 const storage = multer.memoryStorage(); // in-memory for Cloudinary
 const fileFilter = (req, file, cb) => {
