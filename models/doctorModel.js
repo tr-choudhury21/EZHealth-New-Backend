@@ -1,6 +1,6 @@
-import mongoose from "mongoose";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
 const DoctorSchema = new mongoose.Schema(
   {
@@ -9,22 +9,23 @@ const DoctorSchema = new mongoose.Schema(
     email: String,
     password: String,
     phone: String,
-    gender: { type: String, enum: ["Male", "Female", "Other"] },
+    gender: { type: String, enum: ['Male', 'Female', 'Other'] },
     specialization: String,
     department: String,
     experience: String,
+    consultationFee: String,
     profileImage: {
       type: String, // URL of the image
-      default: "", // Optional: fallback avatar
+      default: '', // Optional: fallback avatar
     },
     isVerified: { type: Boolean, default: false },
-    role: { type: String, default: "Doctor" },
+    role: { type: String, default: 'Doctor' },
   },
   { timestamps: true }
 );
 
-DoctorSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) {
+DoctorSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) {
     next();
   }
   this.password = await bcrypt.hash(this.password, 10);
@@ -40,4 +41,4 @@ DoctorSchema.methods.generateJsonWebToken = function () {
   });
 };
 
-export default mongoose.model("Doctor", DoctorSchema);
+export default mongoose.model('Doctor', DoctorSchema);
