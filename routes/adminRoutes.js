@@ -11,7 +11,7 @@ const router = express.Router();
 
 router.post('/new', addNewAdmin);
 router.get('/me', isAdminAuthenticated, getAdminProfile);
-router.post('/logout', isAdminAuthenticated, logoutAdmin);
+router.get('/logout', isAdminAuthenticated, logoutAdmin);
 
 /**
  * @swagger

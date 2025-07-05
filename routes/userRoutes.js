@@ -219,6 +219,6 @@ router.get('/patient/logout', isPatientAuthenticated, logoutPatient);
 router.get('/me', getMe);
 
 router.post('/admin/new', addNewAdmin);
-router.post('/admin/logout', isAdminAuthenticated, logoutAdmin);
+// router.post('/admin/logout', isAdminAuthenticated, logoutAdmin);
 
 export default router;
