@@ -24,8 +24,6 @@ app.use(
   })
 );
 
-console.log('Frontend URL:', process.env.FRONTEND_URL);
-
 app.use(express.json());
 app.use(cookieParser());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -34,6 +32,12 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 dbConnect();
 
 //importing routes
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Welcome to EZHealth Backend</h1>
+    <p>Frontend URL: ${process.env.FRONTEND_URL}</p>
+  `);
+});
 app.use('/api/v1/user', userRoutes);
 app.use('/api/v1/doctor', docRoutes);
 app.use('/api/v1/admin', adminRoutes);
