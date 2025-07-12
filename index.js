@@ -24,6 +24,8 @@ app.use(
   })
 );
 
+console.log('Frontend URL:', process.env.FRONTEND_URL);
+
 app.use(express.json());
 app.use(cookieParser());
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
