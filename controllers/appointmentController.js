@@ -1,12 +1,69 @@
 import Appointment from '../models/appointmentModel.js';
 import { sendEmail } from '../utils/email.js';
 
+//available slots for appointment (Patient)
+export const getAvailableSlots = async (req, res) => {
+  try {
+    const { doctorId, date } = req.query;
+
+    const allSlots = [
+      '09:00 AM',
+      '09:30 AM',
+      '10:00 AM',
+      '10:30 AM',
+      '11:00 AM',
+      '11:30 AM',
+      '12:00 PM',
+      '12:30 PM',
+      '02:00 PM',
+      '02:30 PM',
+      '03:00 PM',
+      '03:30 PM',
+      '04:00 PM',
+      '04:30 PM',
+      '05:00 PM',
+      '05:30 PM',
+      '06:00 PM',
+      '06:30 PM',
+      '07:00 PM',
+    ];
+
+    const bookedAppointments = await Appointment.find({
+      doctorId,
+      appointmentDate: new Date(date),
+    });
+
+    const bookedTimes = bookedAppointments.map((app) => app.appointmentTime);
+
+    const availableSlots = allSlots.filter(
+      (slot) => !bookedTimes.includes(slot)
+    );
+
+    res.status(200).json({ success: true, availableSlots });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // Book appointment (Patient)
 export const bookAppointment = async (req, res) => {
   const { doctorId, appointmentDate, appointmentTime, department } = req.body;
   const patientId = req.user.id; // from JWT
 
   try {
+    const exists = await Appointment.findOne({
+      doctorId,
+      appointmentDate,
+      appointmentTime,
+    });
+
+    if (exists) {
+      return res.status(400).json({
+        success: false,
+        message: 'Time slot already booked. Please select another.',
+      });
+    }
+
     const newAppointment = await Appointment.create({
       patientId,
       doctorId,

@@ -8,11 +8,14 @@ import {
   bookAppointment,
   cancelAppointment,
   getAllAppointments,
+  getAvailableSlots,
   getDoctorAppointments,
   updateAppointmentStatus,
 } from '../controllers/appointmentController.js';
 
 const router = express.Router();
+
+router.get('/available-slots', getAvailableSlots);
 
 /**
  * @swagger
