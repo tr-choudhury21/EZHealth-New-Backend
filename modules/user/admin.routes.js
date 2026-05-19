@@ -5,16 +5,28 @@ import {
   logoutAdmin,
 } from '../user/user.controller.js';
 import { verifyDoctor } from '../doctor/doctor.controller.js';
+import { requirePermission } from '../../middlewares/rbac.middleware.js';
+import { PERMISSIONS } from '../../rbac/roles.js';
 import { isAdminAuthenticated } from '../../middlewares/auth.js';
 
 const router = express.Router();
 
 // ─── Admin Auth ───────────────────────────────────────────────────────────────
-router.post('/new', addNewAdmin);
-router.get('/me', isAdminAuthenticated, getAdminProfile);
+router.post('/new', requirePermission(PERMISSIONS.ADD_ADMIN), addNewAdmin);
+router.get(
+  '/me',
+  isAdminAuthenticated,
+  requirePermission(PERMISSIONS.VIEW_ADMIN_PROFILE),
+  getAdminProfile,
+);
 router.post('/logout', isAdminAuthenticated, logoutAdmin);
 
 // ─── Doctor Management ────────────────────────────────────────────────────────
-router.put('/verify-doctor/:id', isAdminAuthenticated, verifyDoctor);
+router.put(
+  '/verify-doctor/:id',
+  isAdminAuthenticated,
+  requirePermission(PERMISSIONS.VERIFY_DOCTOR),
+  verifyDoctor,
+);
 
 export default router;
