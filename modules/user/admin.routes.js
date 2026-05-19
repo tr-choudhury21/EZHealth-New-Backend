@@ -8,6 +8,7 @@ import { verifyDoctor } from '../doctor/doctor.controller.js';
 import { requirePermission } from '../../middlewares/rbac.middleware.js';
 import { PERMISSIONS } from '../../rbac/roles.js';
 import { isAdminAuthenticated } from '../../middlewares/auth.js';
+import { getAuditLogs } from '../shared/audit/audit.controller.js';
 
 const router = express.Router();
 
@@ -18,6 +19,12 @@ router.get(
   isAdminAuthenticated,
   requirePermission(PERMISSIONS.VIEW_ADMIN_PROFILE),
   getAdminProfile,
+);
+router.get(
+  '/audit-logs',
+  isAdminAuthenticated,
+  requirePermission(PERMISSIONS.VIEW_AUDIT_LOGS),
+  getAuditLogs,
 );
 router.post('/logout', isAdminAuthenticated, logoutAdmin);
 
