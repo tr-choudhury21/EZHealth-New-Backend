@@ -13,6 +13,7 @@ import { findAvailabilityByDoctorId } from '../doctor/availability.repository.js
 import { generateSlotsFromRange } from '../doctor/availability.service.js';
 import { atomicSlotBook } from './appointment.repository.js';
 import { sendEmail } from '../../utils/email.js';
+import { log, getActor, AUDIT_ACTIONS } from '../shared/audit/audit.service.js';
 
 // ─── Slots ────────────────────────────────────────────────────────────────────
 
@@ -78,11 +79,31 @@ export const bookAppointmentService = async (data, patientId) => {
   });
 
   if (!appointment) {
+    await log({
+      performedBy: getActor(patientUser),
+      action: AUDIT_ACTIONS.APPOINTMENT_BOOKED,
+      target: { resourceType: 'Appointment' },
+      status: 'failure',
+      metadata: {
+        reason: 'Slot already booked',
+        doctorId,
+        appointmentDate,
+        appointmentTime,
+      },
+    });
     throw {
       status: 409,
       message: 'This slot was just booked. Please select another.',
     };
   }
+
+  await log({
+    performedBy: getActor(patientUser),
+    action: AUDIT_ACTIONS.APPOINTMENT_BOOKED,
+    target: { resourceType: 'Appointment', resourceId: appointment._id },
+    changes: { before: null, after: { status: 'AwaitingPayment' } },
+    metadata: { doctorId, appointmentDate, appointmentTime, department },
+  });
 
   return appointment;
 };
@@ -101,8 +122,19 @@ export const cancelAppointmentService = async (appointmentId, userId) => {
     throw { status: 400, message: 'Cannot cancel this appointment' };
   }
 
+  const previousStatus = appointment.status;
   appointment.status = 'Cancelled';
   await saveAppointment(appointment);
+
+  await log({
+    performedBy: getActor(user),
+    action: AUDIT_ACTIONS.APPOINTMENT_CANCELLED,
+    target: { resourceType: 'Appointment', resourceId: appointment._id },
+    changes: {
+      before: { status: previousStatus },
+      after: { status: 'Cancelled' },
+    },
+  });
 
   // trigger refund if payment was made
   await processRefundService(appointmentId);
@@ -144,7 +176,14 @@ export const updateAppointmentStatusService = async (
     throw { status: 403, message: 'Unauthorized to update this appointment' };
   }
 
+  const previousStatus = appointment.status;
   appointment.status = status;
+
+  const actionMap = {
+    Accepted: AUDIT_ACTIONS.APPOINTMENT_ACCEPTED,
+    Rejected: AUDIT_ACTIONS.APPOINTMENT_REJECTED,
+    Completed: AUDIT_ACTIONS.APPOINTMENT_COMPLETED,
+  };
 
   if (status === 'Accepted') {
     appointment.meetingLink = `https://meet.jit.si/Room-${appointment._id}`;
@@ -156,6 +195,14 @@ export const updateAppointmentStatusService = async (
     // trigger refund if payment was made
     await processRefundService(appointmentId);
   }
+
+  await log({
+    performedBy: getActor(doctorUser),
+    action: actionMap[status],
+    target: { resourceType: 'Appointment', resourceId: appointment._id },
+    changes: { before: { status: previousStatus }, after: { status } },
+    metadata: { meetingLink: appointment.meetingLink || null },
+  });
 
   await saveAppointment(appointment);
   return appointment;

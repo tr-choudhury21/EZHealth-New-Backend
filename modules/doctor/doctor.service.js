@@ -13,6 +13,7 @@ import {
   uploadImageToCloudinary,
   uploadPDFToCloudinary,
 } from '../../utils/cloudinary.utils.js';
+import { log, getActor, AUDIT_ACTIONS } from '../shared/audit/audit.service.js';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,18 @@ export const registerDoctorService = async (data, file) => {
   if (file) profileImage = await uploadImageToCloudinary(file.buffer);
 
   const doctor = await createDoctor({ ...data, profileImage, role: 'Doctor' });
+
+  await log({
+    performedBy: {
+      userId: doctor._id,
+      userType: 'Doctor',
+      email: doctor.email,
+      role: 'Doctor',
+    },
+    action: AUDIT_ACTIONS.DOCTOR_REGISTERED,
+    target: { resourceType: 'Doctor', resourceId: doctor._id },
+    changes: { before: null, after: { isVerified: false } },
+  });
 
   return {
     _id: doctor._id,
@@ -54,6 +67,15 @@ export const loginDoctorService = async ({ email, password }) => {
 export const verifyDoctorService = async (id) => {
   const doctor = await verifyDoctorById(id);
   if (!doctor) throw { status: 404, message: 'Doctor not found' };
+
+  await log({
+    performedBy: getActor(adminUser),
+    action: AUDIT_ACTIONS.DOCTOR_VERIFIED,
+    target: { resourceType: 'Doctor', resourceId: doctor._id },
+    changes: { before: { isVerified: false }, after: { isVerified: true } },
+    metadata: { doctorEmail: doctor.email },
+  });
+
   return doctor;
 };
 

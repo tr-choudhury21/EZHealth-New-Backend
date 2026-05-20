@@ -8,6 +8,7 @@ import {
   initiateRefund,
   markAppointmentRefunded,
 } from './payment.repository.js';
+import { log, getActor, AUDIT_ACTIONS } from '../shared/audit/audit.service.js';
 
 // ─── Create Order ─────────────────────────────────────────────────────────────
 
@@ -47,6 +48,17 @@ export const createOrderService = async ({ amount, appointmentId }) => {
     order.id,
     amount,
   );
+
+  await log({
+    performedBy: getActor(user),
+    action: AUDIT_ACTIONS.PAYMENT_ORDER_CREATED,
+    target: { resourceType: 'Payment', resourceId: appointment._id },
+    changes: {
+      before: { paymentStatus: 'Pending' },
+      after: { razorpayOrderId: order.id },
+    },
+    metadata: { amount, orderId: order.id },
+  });
 
   return { order, appointment: updatedAppointment };
 };
@@ -91,6 +103,17 @@ export const verifyPaymentService = async ({
     razorpay_signature,
   );
 
+  await log({
+    performedBy: getActor(user),
+    action: AUDIT_ACTIONS.PAYMENT_VERIFIED,
+    target: { resourceType: 'Payment', resourceId: appointment._id },
+    changes: {
+      before: { paymentStatus: 'Pending', status: 'AwaitingPayment' },
+      after: { paymentStatus: 'Paid', status: 'Pending' },
+    },
+    metadata: { razorpay_payment_id, razorpay_order_id },
+  });
+
   return updatedAppointment;
 };
 
@@ -103,12 +126,36 @@ export const processRefundService = async (appointmentId) => {
   if (!appointment) return null;
 
   // call Razorpay refund API
-  const refund = await razorpay.payments.refund(appointment.razorpayPaymentId, {
-    amount: appointment.amount * 100, // full refund in paise
-    notes: { reason: 'Appointment cancelled or rejected' },
-  });
+  try {
+    const refund = await razorpay.payments.refund(
+      appointment.razorpayPaymentId,
+      { amount: appointment.amount * 100 },
+    );
 
-  await markAppointmentRefunded(appointment);
+    await markAppointmentRefunded(appointment);
 
-  return refund;
+    await log({
+      performedBy: getActor(user),
+      action: AUDIT_ACTIONS.PAYMENT_REFUNDED,
+      target: { resourceType: 'Payment', resourceId: appointment._id },
+      changes: {
+        before: { paymentStatus: 'Paid' },
+        after: { paymentStatus: 'Refunded' },
+      },
+      metadata: { refundId: refund.id, amount: appointment.amount },
+    });
+
+    return refund;
+  } catch (err) {
+    appointment.paymentStatus = 'RefundFailed';
+    await appointment.save();
+
+    await log({
+      performedBy: getActor(user),
+      action: AUDIT_ACTIONS.PAYMENT_REFUND_FAILED,
+      target: { resourceType: 'Payment', resourceId: appointment._id },
+      status: 'failure',
+      metadata: { error: err.message },
+    });
+  }
 };
