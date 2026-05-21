@@ -1,6 +1,6 @@
 import Doctor from './doctor.model.js';
 import Appointment from '../appointment/appointment.model.js';
-import Prescription from '../../shared/models/prescription.model.js';
+import Prescription from '../shared/models/prescription.model.js';
 
 // ─── Doctor ──────────────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ export const findAllVerifiedDoctors = async ({
   if (specialization) query.specialization = specialization;
   if (search) {
     query.$or = [
-      { firstName: { $regex: search, $options: 'i' } },
+      { firstName: { $regex: search, $options: 'i' } }, //case-insensitive search
       { lastName: { $regex: search, $options: 'i' } },
       { email: { $regex: search, $options: 'i' } },
     ];
