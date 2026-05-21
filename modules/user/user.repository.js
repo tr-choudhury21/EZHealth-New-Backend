@@ -1,7 +1,7 @@
 import User from './user.model.js';
 import Doctor from '../doctor/doctor.model.js';
 import Appointment from '../appointment/appointment.model.js';
-import Prescription from '../../shared/models/prescription.model.js';
+import Prescription from '../shared/models/prescription.model.js';
 
 // ─── User ────────────────────────────────────────────────────────────────────
 
