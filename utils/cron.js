@@ -1,7 +1,7 @@
 // utils/cron.js
 import cron from 'node-cron';
-import Appointment from '../appointment/appointment.model.js';
-import { log, AUDIT_ACTIONS } from '../shared/audit/audit.service.js';
+import Appointment from '../modules/appointment/appointment.model.js';
+import { log, AUDIT_ACTIONS } from '../modules/shared/audit/audit.service.js';
 
 export const startCronJobs = () => {
   // runs every 5 minutes
