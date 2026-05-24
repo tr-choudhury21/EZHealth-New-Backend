@@ -20,7 +20,7 @@ export const findAllVerifiedDoctors = async ({
   department,
   specialization,
   search,
-}) => {
+} = {}) => {
   const query = { isVerified: true };
 
   if (department) query.department = department;

@@ -88,7 +88,7 @@ export const getUnverifiedDoctors = async (req, res) => {
 
 export const getAllDoctors = async (req, res) => {
   try {
-    const doctors = await getAllDoctorsService();
+    const doctors = await getAllDoctorsService(req.query);
     res
       .status(200)
       .json({ success: true, totalDoctors: doctors.length, doctors });

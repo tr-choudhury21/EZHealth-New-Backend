@@ -83,8 +83,8 @@ export const getUnverifiedDoctorsService = async () => {
   return await findAllUnverifiedDoctors();
 };
 
-export const getAllDoctorsService = async () => {
-  return await findAllVerifiedDoctors();
+export const getAllDoctorsService = async (filters = {}) => {
+  return await findAllVerifiedDoctors(filters);
 };
 
 // ─── Doctor Actions ───────────────────────────────────────────────────────────
