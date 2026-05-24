@@ -61,31 +61,85 @@ export const atomicSlotBook = async ({
   appointmentTime,
   department,
 }) => {
-  const start = new Date(appointmentDate);
-  start.setHours(0, 0, 0, 0);
+  try {
+    // Normalize date range
+    const start = new Date(appointmentDate);
+    start.setHours(0, 0, 0, 0);
 
-  const end = new Date(appointmentDate);
-  end.setHours(23, 59, 59, 999);
+    const end = new Date(appointmentDate);
+    end.setHours(23, 59, 59, 999);
 
-  // This query only succeeds if NO active appointment exists for this slot
-  // MongoDB processes this atomically — no race condition possible
-  const existing = await Appointment.findOne({
-    doctorId,
-    appointmentTime,
-    appointmentDate: { $gte: start, $lte: end },
-    status: { $nin: ['Cancelled', 'Rejected'] },
-  });
+    /*
+      Conflict prevention rules:
 
-  if (existing) return null; // slot taken
+      1. Same doctor cannot have multiple appointments
+         at the same date & time.
 
-  return await Appointment.create({
-    doctorId,
-    patientId,
-    appointmentDate,
-    appointmentTime,
-    department,
-    status: 'Pending',
-  });
+      2. Same patient cannot book multiple appointments
+         at the same date & time, even with different doctors.
+
+      Cancelled and Rejected appointments are ignored
+      because those slots become reusable.
+    */
+
+    const existing = await Appointment.findOne({
+      appointmentTime,
+
+      appointmentDate: {
+        $gte: start,
+        $lte: end,
+      },
+
+      status: {
+        $nin: ['Cancelled', 'Rejected'],
+      },
+
+      $or: [{ doctorId }, { patientId }],
+    });
+
+    // Conflict detected
+    if (existing) {
+      // Doctor already booked
+      if (existing.doctorId.toString() === doctorId.toString()) {
+        throw {
+          status: 409,
+          message: 'Doctor slot already booked',
+        };
+      }
+
+      // Patient already has appointment
+      if (existing.patientId.toString() === patientId.toString()) {
+        throw {
+          status: 409,
+          message: 'You already have another appointment at this time',
+        };
+      }
+    }
+
+    // Create appointment
+    const appointment = await Appointment.create({
+      doctorId,
+      patientId,
+      appointmentDate,
+      appointmentTime,
+      department,
+      status: 'Pending',
+    });
+
+    return appointment;
+  } catch (err) {
+    // MongoDB duplicate key protection
+    // (useful if unique compound indexes are added later)
+
+    if (err.code === 11000) {
+      throw {
+        status: 409,
+        message: 'Appointment slot conflict detected',
+      };
+    }
+
+    throw err;
+  }
 };
 
 export const createAppointment = async (data) => {

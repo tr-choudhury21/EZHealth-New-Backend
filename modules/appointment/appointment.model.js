@@ -50,4 +50,44 @@ const AppointmentSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+// ─── INDEXES ─────────────────────────────────────────────────
+
+// Prevent same doctor having same slot
+
+AppointmentSchema.index(
+  {
+    doctorId: 1,
+    appointmentDate: 1,
+    appointmentTime: 1,
+  },
+  {
+    unique: true,
+
+    partialFilterExpression: {
+      status: {
+        $nin: ['Cancelled', 'Rejected'],
+      },
+    },
+  },
+);
+
+// Prevent same patient booking same slot
+
+AppointmentSchema.index(
+  {
+    patientId: 1,
+    appointmentDate: 1,
+    appointmentTime: 1,
+  },
+  {
+    unique: true,
+
+    partialFilterExpression: {
+      status: {
+        $nin: ['Cancelled', 'Rejected'],
+      },
+    },
+  },
+);
+
 export default mongoose.model('Appointment', AppointmentSchema);
