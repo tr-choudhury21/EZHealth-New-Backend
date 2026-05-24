@@ -12,7 +12,7 @@ import { log, getActor, AUDIT_ACTIONS } from '../shared/audit/audit.service.js';
 
 // ─── Create Order ─────────────────────────────────────────────────────────────
 
-export const createOrderService = async ({ amount, appointmentId }) => {
+export const createOrderService = async ({ amount, appointmentId }, user) => {
   const appointment = await findAppointmentById(appointmentId);
   if (!appointment) throw { status: 404, message: 'Appointment not found' };
 
@@ -65,11 +65,10 @@ export const createOrderService = async ({ amount, appointmentId }) => {
 
 // ─── Verify Payment ───────────────────────────────────────────────────────────
 
-export const verifyPaymentService = async ({
-  razorpay_order_id,
-  razorpay_payment_id,
-  razorpay_signature,
-}) => {
+export const verifyPaymentService = async (
+  { razorpay_order_id, razorpay_payment_id, razorpay_signature },
+  user,
+) => {
   const appointment = await findAppointmentByOrderId(razorpay_order_id);
   if (!appointment) {
     throw { status: 404, message: 'No appointment found for this order ID' };
@@ -119,7 +118,7 @@ export const verifyPaymentService = async ({
 
 // ─── Refund Payment ───────────────────────────────────────────────────────────
 
-export const processRefundService = async (appointmentId) => {
+export const processRefundService = async (appointmentId, user) => {
   const appointment = await initiateRefund(appointmentId);
 
   // nothing to refund

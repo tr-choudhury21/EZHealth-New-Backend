@@ -64,7 +64,7 @@ export const loginDoctorService = async ({ email, password }) => {
 
 // ─── Admin Actions ────────────────────────────────────────────────────────────
 
-export const verifyDoctorService = async (id) => {
+export const verifyDoctorService = async (id, adminUser) => {
   const doctor = await verifyDoctorById(id);
   if (!doctor) throw { status: 404, message: 'Doctor not found' };
 

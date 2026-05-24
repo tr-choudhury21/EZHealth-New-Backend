@@ -36,7 +36,7 @@ export const bookAppointment = async (req, res) => {
     const error = validateBookAppointment(req.body);
     if (error) return res.status(400).json({ success: false, message: error });
 
-    const appointment = await bookAppointmentService(req.body, req.user.id);
+    const appointment = await bookAppointmentService(req.body, req.user);
     res.status(201).json({
       success: true,
       message: 'Appointment booked successfully',
@@ -52,10 +52,7 @@ export const bookAppointment = async (req, res) => {
 
 export const cancelAppointment = async (req, res) => {
   try {
-    const appointment = await cancelAppointmentService(
-      req.params.id,
-      req.user.id,
-    );
+    const appointment = await cancelAppointmentService(req.params.id, req.user);
     res
       .status(200)
       .json({ success: true, message: 'Appointment cancelled', appointment });

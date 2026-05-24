@@ -66,7 +66,7 @@ export const logoutDoctor = (req, res) => {
 
 export const verifyDoctor = async (req, res) => {
   try {
-    const doctor = await verifyDoctorService(req.params.id);
+    const doctor = await verifyDoctorService(req.params.id, req.user);
     res.status(200).json({ success: true, message: 'Doctor verified', doctor });
   } catch (err) {
     res

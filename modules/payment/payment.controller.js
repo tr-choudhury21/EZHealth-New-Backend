@@ -9,7 +9,7 @@ export const createOrder = async (req, res) => {
     const error = validateCreateOrder(req.body);
     if (error) return res.status(400).json({ success: false, message: error });
 
-    const { order, appointment } = await createOrderService(req.body);
+    const { order, appointment } = await createOrderService(req.body, req.user);
     res.status(200).json({ success: true, order, appointment });
   } catch (err) {
     res
@@ -23,7 +23,7 @@ export const verifyPayment = async (req, res) => {
     const error = validateVerifyPayment(req.body);
     if (error) return res.status(400).json({ success: false, message: error });
 
-    const appointment = await verifyPaymentService(req.body);
+    const appointment = await verifyPaymentService(req.body, req.user);
     res.status(200).json({
       success: true,
       message: 'Payment verified successfully',

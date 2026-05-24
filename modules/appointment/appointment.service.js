@@ -8,6 +8,7 @@ import {
   findAllAppointments,
   findAppointmentsByDoctorId,
 } from './appointment.repository.js';
+import { findDoctorById } from '../doctor/doctor.repository.js';
 import { processRefundService } from '../payment/payment.service.js';
 import { findAvailabilityByDoctorId } from '../doctor/availability.repository.js';
 import { generateSlotsFromRange } from '../doctor/availability.service.js';
@@ -26,7 +27,7 @@ export const getAvailableSlotsService = async (doctorId, date) => {
 // ─── Book ─────────────────────────────────────────────────────────────────────
 
 // REPLACE your existing bookAppointmentService
-export const bookAppointmentService = async (data, patientId) => {
+export const bookAppointmentService = async (data, patientUser) => {
   const { doctorId, appointmentDate, appointmentTime, department } = data;
 
   // Step 1 — check slot exists in doctor's availability
@@ -38,7 +39,16 @@ export const bookAppointmentService = async (data, patientId) => {
     'Thursday',
     'Friday',
     'Saturday',
-  ][new Date(appointmentDate).getDay()];
+  ][new Date(`${appointmentDate}T00:00:00Z`).getDay()];
+
+  const doctor = await findDoctorById(doctorId);
+
+  if (!doctor) {
+    throw {
+      status: 404,
+      message: 'Doctor not found',
+    };
+  }
 
   const availability = await findAvailabilityByDoctorId(doctorId);
 
@@ -72,7 +82,7 @@ export const bookAppointmentService = async (data, patientId) => {
   // Step 2 — atomic booking (prevents race condition)
   const appointment = await atomicSlotBook({
     doctorId,
-    patientId,
+    patientId: patientUser._id,
     appointmentDate,
     appointmentTime,
     department,
@@ -110,11 +120,11 @@ export const bookAppointmentService = async (data, patientId) => {
 
 // ─── Cancel ───────────────────────────────────────────────────────────────────
 
-export const cancelAppointmentService = async (appointmentId, userId) => {
+export const cancelAppointmentService = async (appointmentId, user) => {
   const appointment = await findAppointmentById(appointmentId);
   if (!appointment) throw { status: 404, message: 'Appointment not found' };
 
-  if (appointment.patientId.toString() !== userId) {
+  if (appointment.patientId.toString() !== user._id.toString()) {
     throw { status: 403, message: 'Not authorized to cancel this appointment' };
   }
 
@@ -137,7 +147,7 @@ export const cancelAppointmentService = async (appointmentId, userId) => {
   });
 
   // trigger refund if payment was made
-  await processRefundService(appointmentId);
+  await processRefundService(appointmentId, req.user);
   return appointment;
 };
 
@@ -167,12 +177,12 @@ export const getDoctorAppointmentsService = async (doctorId) => {
 export const updateAppointmentStatusService = async (
   appointmentId,
   status,
-  doctorId,
+  doctorUser,
 ) => {
   const appointment = await findAppointmentById(appointmentId);
   if (!appointment) throw { status: 404, message: 'Appointment not found' };
 
-  if (appointment.doctorId.toString() !== doctorId) {
+  if (appointment.doctorId.toString() !== doctorUser._id.toString()) {
     throw { status: 403, message: 'Unauthorized to update this appointment' };
   }
 
