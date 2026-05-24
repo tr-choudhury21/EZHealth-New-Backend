@@ -1,72 +1,67 @@
-import User from "../models/userModel.js";
-import Doctor from "../models/doctorModel.js";
-import { catchAsyncErrors } from "./catchAsyncErrors.js";
-import ErrorHandler from "./errorMiddleware.js";
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
+import User from '../modules/user/user.model.js';
+import Doctor from '../modules/doctor/doctor.model.js';
 
-export const isAdminAuthenticated = catchAsyncErrors(async (req, res, next) => {
-  const token = req.cookies.adminToken;
+// ─── Generic token verifier ───────────────────────────────────────────────────
 
-  if (!token) {
-    return next(new ErrorHandler("Admin Not Authenticated!", 400));
-  }
-  const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+const authenticate = (cookieName, findUser, requiredRole) => {
+  return async (req, res, next) => {
+    try {
+      const token = req.cookies[cookieName];
 
-  req.user = await User.findById(decoded.id);
+      if (!token) {
+        return res.status(401).json({
+          success: false,
+          message: `${requiredRole} not authenticated`,
+        });
+      }
 
-  if (req.user.role !== "Admin") {
-    return next(
-      new ErrorHandler(
-        `${req.user.role} not authorized for this resource!`,
-        403
-      )
-    );
-  }
-  next();
-});
+      const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+      const user = await findUser(decoded.id);
 
-export const isDoctorAuthenticated = catchAsyncErrors(
-  async (req, res, next) => {
-    const token = req.cookies.doctorToken;
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: 'User no longer exists',
+        });
+      }
 
-    if (!token) {
-      return next(new ErrorHandler("Admin Not Authenticated!", 400));
+      if (user.role !== requiredRole) {
+        return res.status(403).json({
+          success: false,
+          message: `${user.role} is not authorized for this resource`,
+        });
+      }
+
+      req.user = user;
+      next();
+    } catch (error) {
+      // jwt.verify throws if token is expired or tampered
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid or expired token',
+        error: error.message,
+      });
     }
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+  };
+};
 
-    req.user = await Doctor.findById(decoded.id);
+// ─── Exported middleware ──────────────────────────────────────────────────────
 
-    if (req.user.role !== "Doctor") {
-      return next(
-        new ErrorHandler(
-          `${req.user.role} not authorized for this resource!`,
-          403
-        )
-      );
-    }
-    next();
-  }
+export const isAdminAuthenticated = authenticate(
+  'adminToken',
+  (id) => User.findById(id),
+  'Admin',
 );
 
-export const isPatientAuthenticated = catchAsyncErrors(
-  async (req, res, next) => {
-    const token = req.cookies.patientToken;
+export const isPatientAuthenticated = authenticate(
+  'patientToken',
+  (id) => User.findById(id),
+  'Patient',
+);
 
-    if (!token) {
-      return next(new ErrorHandler("Patient Not Authenticated!", 400));
-    }
-    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
-
-    req.user = await User.findById(decoded.id);
-
-    if (req.user.role !== "Patient") {
-      return next(
-        new ErrorHandler(
-          `${req.user.role} not authorized for this resource!`,
-          403
-        )
-      );
-    }
-    next();
-  }
+export const isDoctorAuthenticated = authenticate(
+  'doctorToken',
+  (id) => Doctor.findById(id),
+  'Doctor',
 );
