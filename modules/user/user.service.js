@@ -7,6 +7,12 @@ import {
   findAppointmentsByPatientId,
   findPrescriptionsByPatientId,
 } from './user.repository.js';
+import crypto from 'crypto';
+import { sendEmail } from '../utils/email.js';
+import {
+  verificationEmailTemplate,
+  passwordResetEmailTemplate,
+} from '../utils/emailTemplates.js';
 
 import jwt from 'jsonwebtoken';
 
@@ -29,6 +35,88 @@ export const registerPatientService = async (data) => {
     role: 'Patient',
   });
 
+  // Generate verification token
+  const token = user.generateEmailVerifyToken();
+  await user.save({ validateBeforeSave: false });
+
+  // Send verification email
+  const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+  await sendEmail(
+    user.email,
+    'Verify your EZHealth account',
+    verificationEmailTemplate(`${user.firstName} ${user.lastName}`, verifyUrl),
+  );
+
+  return user;
+};
+
+// Verify email
+export const verifyEmailService = async (token) => {
+  // Hash the token from URL to compare with stored hash
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await findUserByEmailVerifyToken(hashedToken);
+  if (!user) throw { status: 400, message: 'Token is invalid or has expired' };
+
+  user.isEmailVerified = true;
+  user.emailVerifyToken = null;
+  user.emailVerifyExpire = null;
+
+  await user.save({ validateBeforeSave: false });
+
+  return user;
+};
+
+// Resend verification email
+export const resendVerificationEmailService = async (email) => {
+  const user = await findUserByEmailWithToken(email);
+  if (!user) throw { status: 404, message: 'User not found' };
+
+  if (user.isEmailVerified) {
+    throw { status: 400, message: 'Email is already verified' };
+  }
+
+  const token = user.generateEmailVerifyToken();
+  await user.save({ validateBeforeSave: false });
+
+  const verifyUrl = `${process.env.FRONTEND_URL}/verify-email/${token}`;
+  await sendEmail(
+    user.email,
+    'Verify your EZHealth account',
+    verificationEmailTemplate(`${user.firstName} ${user.lastName}`, verifyUrl),
+  );
+};
+
+// Forgot password
+export const forgotPasswordService = async (email) => {
+  const user = await findUserByEmailWithToken(email);
+  if (!user) throw { status: 404, message: 'User not found' };
+
+  const token = user.generatePasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${token}`;
+
+  await sendEmail(
+    user.email,
+    'Reset your EZHealth password',
+    passwordResetEmailTemplate(`${user.firstName} ${user.lastName}`, resetUrl),
+  );
+};
+
+// Reset password
+export const resetPasswordService = async (token, newPassword) => {
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+  const user = await findUserByResetToken(hashedToken);
+  if (!user) throw { status: 400, message: 'Token is invalid or has expired' };
+
+  user.password = newPassword;
+  user.resetPasswordToken = null;
+  user.resetPasswordExpire = null;
+
+  await user.save();
+
   return user;
 };
 
@@ -45,6 +133,14 @@ export const loginService = async ({ email, password, role }) => {
     if (!user) throw { status: 404, message: 'User not found' };
     if (user.role !== role)
       throw { status: 403, message: 'Access denied, role mismatch' };
+
+    // Check email verification
+    if (!user.isEmailVerified) {
+      throw {
+        status: 403,
+        message: 'Please verify your email before logging in',
+      };
+    }
   }
 
   const isMatch = await user.comparePassword(password);

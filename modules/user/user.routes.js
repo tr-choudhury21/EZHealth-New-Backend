@@ -9,6 +9,10 @@ import {
   getUserProfile,
   getAdminProfile,
   verifyUser,
+  verifyEmail,
+  resendVerificationEmail,
+  forgotPassword,
+  resetPassword,
   getMe,
 } from './user.controller.js';
 import {
@@ -27,6 +31,14 @@ export const authLimiter = rateLimit({
 // ─── Auth ────────────────────────────────────────────────────────────────────
 router.post('/patient/register', registerPatient);
 router.post('/login', login);
+
+// Email verification
+router.get('/verify-email/:token', verifyEmail);
+router.post('/resend-verification', resendVerificationEmail);
+
+// Password reset
+router.post('/forgot-password', forgotPassword);
+router.put('/reset-password/:token', resetPassword);
 
 // ─── Patient ─────────────────────────────────────────────────────────────────
 router.get('/patient/me', isPatientAuthenticated, getUserProfile);

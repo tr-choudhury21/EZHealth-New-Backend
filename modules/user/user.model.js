@@ -12,6 +12,15 @@ const UserSchema = new mongoose.Schema(
     age: { type: Number, required: true },
     role: { type: String, enum: ['Patient', 'Admin'], default: 'Patient' },
     address: { type: String, default: '' },
+
+    // Email verification
+    isEmailVerified: { type: Boolean, default: false },
+    emailVerifyToken: { type: String, default: null },
+    emailVerifyExpire: { type: Date, default: null },
+
+    // Password reset
+    resetPasswordToken: { type: String, default: null },
+    resetPasswordExpire: { type: Date, default: null },
   },
   { timestamps: true },
 );
@@ -28,6 +37,34 @@ UserSchema.pre('save', async function (next) {
 // Compare passwords
 UserSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+// Generate email verification token
+UserSchema.methods.generateEmailVerifyToken = function () {
+  const token = crypto.randomBytes(32).toString('hex');
+
+  this.emailVerifyToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  this.emailVerifyExpire = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+  return token; // return unhashed token (sent in email)
+};
+
+// Generate password reset token
+UserSchema.methods.generatePasswordResetToken = function () {
+  const token = crypto.randomBytes(32).toString('hex');
+
+  this.resetPasswordToken = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  this.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+  return token; // return unhashed token (sent in email)
 };
 
 export default mongoose.model('User', UserSchema);

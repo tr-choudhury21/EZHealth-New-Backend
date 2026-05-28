@@ -7,6 +7,10 @@ import {
   getUserProfileService,
   resolveTokenFromCookies,
   verifyTokenAndGetUser,
+  verifyEmailService,
+  resendVerificationEmailService,
+  forgotPasswordService,
+  resetPasswordService,
 } from './user.service.js';
 import {
   validateRegisterInput,
@@ -59,6 +63,68 @@ export const logoutPatient = async (req, res, next) => {
     success: true,
     message: 'Patient logged out!',
   });
+};
+
+export const verifyEmail = async (req, res) => {
+  try {
+    const user = await verifyEmailService(req.params.token);
+    res.status(200).json({
+      success: true,
+      message: 'Email verified successfully. You can now log in.',
+    });
+  } catch (err) {
+    res
+      .status(err.status || 500)
+      .json({ success: false, message: err.message });
+  }
+};
+
+export const resendVerificationEmail = async (req, res) => {
+  try {
+    await resendVerificationEmailService(req.body.email);
+    res.status(200).json({
+      success: true,
+      message: 'Verification email sent. Please check your inbox.',
+    });
+  } catch (err) {
+    res
+      .status(err.status || 500)
+      .json({ success: false, message: err.message });
+  }
+};
+
+export const forgotPassword = async (req, res) => {
+  try {
+    await forgotPasswordService(req.body.email);
+    res.status(200).json({
+      success: true,
+      message: 'Password reset email sent. Please check your inbox.',
+    });
+  } catch (err) {
+    res
+      .status(err.status || 500)
+      .json({ success: false, message: err.message });
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  try {
+    if (!req.body.password) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'New password is required' });
+    }
+
+    await resetPasswordService(req.params.token, req.body.password);
+    res.status(200).json({
+      success: true,
+      message: 'Password reset successful. You can now log in.',
+    });
+  } catch (err) {
+    res
+      .status(err.status || 500)
+      .json({ success: false, message: err.message });
+  }
 };
 
 /*----------------------------------Admin----------------------------------------*/

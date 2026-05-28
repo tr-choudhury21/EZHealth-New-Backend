@@ -42,3 +42,28 @@ export const findPrescriptionsByPatientId = async (patientId) => {
     .populate('doctorId', 'firstName lastName')
     .sort({ issuedAt: -1 });
 };
+
+// ─── Email Verification ───────────────────────────────────────────────────────────
+
+// Find user by email (includes sensitive fields)
+export const findUserByEmailWithToken = async (email) => {
+  return await User.findOne({ email }).select(
+    '+emailVerifyToken +emailVerifyExpire +resetPasswordToken +resetPasswordExpire +password',
+  );
+};
+
+// Find user by email verify token (hashed)
+export const findUserByEmailVerifyToken = async (hashedToken) => {
+  return await User.findOne({
+    emailVerifyToken: hashedToken,
+    emailVerifyExpire: { $gt: new Date() }, // not expired
+  });
+};
+
+// Find user by reset token (hashed)
+export const findUserByResetToken = async (hashedToken) => {
+  return await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpire: { $gt: new Date() }, // not expired
+  });
+};
