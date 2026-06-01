@@ -136,7 +136,7 @@ export const uploadPrescription = async (req, res) => {
     const prescription = await uploadPrescriptionService(
       req.body,
       req.file,
-      req.user.id,
+      req.user,
     );
     res.status(201).json({
       success: true,

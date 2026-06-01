@@ -8,6 +8,12 @@ import {
   findAllAppointments,
   findAppointmentsByDoctorId,
 } from './appointment.repository.js';
+import {
+  notifyAppointmentBooked,
+  notifyAppointmentAccepted,
+  notifyAppointmentRejected,
+  notifyAppointmentCancelled,
+} from '../shared/notifications/notification.service.js';
 import { findDoctorById } from '../doctor/doctor.repository.js';
 import { processRefundService } from '../payment/payment.service.js';
 import { findAvailabilityByDoctorId } from '../doctor/availability.repository.js';
@@ -115,6 +121,8 @@ export const bookAppointmentService = async (data, patientUser) => {
     metadata: { doctorId, appointmentDate, appointmentTime, department },
   });
 
+  await notifyAppointmentBooked(appointment, patientUser);
+
   return appointment;
 };
 
@@ -148,6 +156,7 @@ export const cancelAppointmentService = async (appointmentId, user) => {
 
   // trigger refund if payment was made
   await processRefundService(appointmentId, req.user);
+  await notifyAppointmentCancelled(appointment, user);
   return appointment;
 };
 
@@ -198,10 +207,12 @@ export const updateAppointmentStatusService = async (
   if (status === 'Accepted') {
     appointment.meetingLink = `https://meet.jit.si/Room-${appointment._id}`;
     await _sendAcceptanceEmail(appointment);
+    await notifyAppointmentAccepted(appointment, doctorUser);
   }
 
   if (status === 'Rejected') {
     await _sendRejectionEmail(appointment);
+    await notifyAppointmentRejected(appointment, doctorUser);
     // trigger refund if payment was made
     await processRefundService(appointmentId);
   }

@@ -11,6 +11,7 @@ import doctorRoutes from './modules/doctor/doctor.routes.js';
 import appointmentRoutes from './modules/appointment/appointment.routes.js';
 import paymentRoutes from './modules/payment/payment.routes.js';
 import adminRoutes from './modules/user/admin.routes.js';
+import notificationRoutes from './shared/notifications/notification.routes.js';
 // import aiRoutes from './ai/ai.routes.js';
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/v1/appointment', appointmentRoutes);
 app.use('/api/v1/payment', paymentRoutes);
 // app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 // ─── 404 Handler ──────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res

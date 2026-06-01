@@ -8,6 +8,10 @@ import {
   initiateRefund,
   markAppointmentRefunded,
 } from './payment.repository.js';
+import {
+  notifyPaymentSuccessful,
+  notifyRefundProcessed,
+} from '../shared/notifications/notification.service.js';
 import { log, getActor, AUDIT_ACTIONS } from '../shared/audit/audit.service.js';
 
 // ─── Create Order ─────────────────────────────────────────────────────────────
@@ -113,6 +117,8 @@ export const verifyPaymentService = async (
     metadata: { razorpay_payment_id, razorpay_order_id },
   });
 
+  await notifyPaymentSuccessful(updatedAppointment, user);
+
   return updatedAppointment;
 };
 
@@ -143,6 +149,8 @@ export const processRefundService = async (appointmentId, user) => {
       },
       metadata: { refundId: refund.id, amount: appointment.amount },
     });
+
+    await notifyRefundProcessed(appointment);
 
     return refund;
   } catch (err) {

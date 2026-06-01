@@ -10,6 +10,12 @@ import {
   createPrescription,
 } from './doctor.repository.js';
 import {
+  notifyDoctorVerified,
+  notifyAdminDoctorRegistered,
+  notifyPrescriptionUploaded,
+} from '../shared/notifications/notification.service.js';
+import User from '../user/user.model.js';
+import {
   uploadImageToCloudinary,
   uploadPDFToCloudinary,
 } from '../../utils/cloudinary.utils.js';
@@ -37,6 +43,11 @@ export const registerDoctorService = async (data, file) => {
     target: { resourceType: 'Doctor', resourceId: doctor._id },
     changes: { before: null, after: { isVerified: false } },
   });
+
+  // Get all admin IDs to notify
+  const admins = await User.find({ role: 'Admin' }).select('_id');
+  const adminIds = admins.map((a) => a._id);
+  await notifyAdminDoctorRegistered(doctor, adminIds);
 
   return {
     _id: doctor._id,
@@ -75,6 +86,8 @@ export const verifyDoctorService = async (id, adminUser) => {
     changes: { before: { isVerified: false }, after: { isVerified: true } },
     metadata: { doctorEmail: doctor.email },
   });
+
+  await notifyDoctorVerified(doctor);
 
   return doctor;
 };
@@ -120,16 +133,18 @@ export const updateDoctorProfileService = async (doctorId, updates, file) => {
 
 // ─── Prescription ─────────────────────────────────────────────────────────────
 
-export const uploadPrescriptionService = async (data, file, doctorId) => {
+export const uploadPrescriptionService = async (data, file, doctorUser) => {
   if (!file) throw { status: 400, message: 'PDF file is required' };
 
   const fileUrl = await uploadPDFToCloudinary(file.buffer);
 
   const prescription = await createPrescription({
     ...data,
-    doctorId,
+    doctorId: doctorUser._id,
     prescriptionFileUrl: fileUrl,
   });
+
+  await notifyPrescriptionUploaded(prescription, doctorUser);
 
   return prescription;
 };
