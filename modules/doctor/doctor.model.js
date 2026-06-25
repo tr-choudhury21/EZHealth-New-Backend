@@ -16,6 +16,8 @@ const DoctorSchema = new mongoose.Schema(
     profileImage: { type: String, default: '' },
     isVerified: { type: Boolean, default: false },
     role: { type: String, default: 'Doctor' },
+    averageRating: { type: Number, default: 0, min: 0, max: 5 },
+    totalReviews: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

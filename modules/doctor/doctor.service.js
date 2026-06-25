@@ -10,6 +10,10 @@ import {
   createPrescription,
 } from './doctor.repository.js';
 import {
+  findReviewsByDoctorId,
+  getRatingBreakdown,
+} from '../review/review.repository.js';
+import {
   notifyDoctorVerified,
   notifyAdminDoctorRegistered,
   notifyPrescriptionUploaded,
@@ -108,6 +112,12 @@ export const getDoctorProfileService = async (doctorId) => {
 
   const appointments = await findAppointmentsByDoctorId(doctorId);
 
+  // Latest 5 reviews + rating breakdown
+  const [{ reviews }, ratingBreakdown] = await Promise.all([
+    findReviewsByDoctorId(doctorId, { page: 1, limit: 5 }),
+    getRatingBreakdown(doctorId),
+  ]);
+
   const formattedAppointments = appointments.map((a) => ({
     appointmentId: a._id,
     patientName: `${a.patientId.firstName} ${a.patientId.lastName}`,
@@ -119,7 +129,16 @@ export const getDoctorProfileService = async (doctorId) => {
     status: a.status,
   }));
 
-  return { doctor, appointments: formattedAppointments };
+  return {
+    doctor,
+    appointments: formattedAppointments,
+    ratings: {
+      average: doctor.averageRating,
+      total: doctor.totalReviews,
+      breakdown: ratingBreakdown,
+      latestReviews: reviews,
+    },
+  };
 };
 
 export const updateDoctorProfileService = async (doctorId, updates, file) => {
