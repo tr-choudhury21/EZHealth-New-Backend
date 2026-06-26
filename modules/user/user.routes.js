@@ -14,6 +14,7 @@ import {
   forgotPassword,
   resetPassword,
   getMe,
+  refreshToken,
 } from './user.controller.js';
 import {
   isAdminAuthenticated,
@@ -31,6 +32,7 @@ export const authLimiter = rateLimit({
 // ─── Auth ────────────────────────────────────────────────────────────────────
 router.post('/patient/register', registerPatient);
 router.post('/login', login);
+router.post('/refresh-token', refreshToken);
 
 // Email verification
 router.get('/verify-email/:token', verifyEmail);

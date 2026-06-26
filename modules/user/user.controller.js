@@ -1,4 +1,8 @@
-import { generateToken } from '../../utils/jwtToken.js';
+import {
+  generateToken,
+  clearTokenCookies,
+  COOKIE_NAMES,
+} from '../../utils/jwtToken.js';
 
 import {
   registerPatientService,
@@ -11,18 +15,13 @@ import {
   resendVerificationEmailService,
   forgotPasswordService,
   resetPasswordService,
+  refreshAccessTokenService,
+  logoutService,
 } from './user.service.js';
 import {
   validateRegisterInput,
   validateLoginInput,
 } from './user.validation.js';
-
-const COOKIE_OPTIONS = {
-  httpOnly: true,
-  expires: new Date(Date.now()),
-  secure: true,
-  sameSite: 'None',
-};
 
 //----------------------------------Auth--------------------------------------------//
 
@@ -59,10 +58,15 @@ export const login = async (req, res) => {
 
 //Patient Logout
 export const logoutPatient = async (req, res, next) => {
-  res.status(200).cookie('patientToken', '', COOKIE_OPTIONS).json({
-    success: true,
-    message: 'Patient logged out!',
-  });
+  try {
+    await logoutService(req.cookies, 'Patient');
+    clearTokenCookies('Patient', res);
+    res.status(200).json({ success: true, message: 'Patient logged out' });
+  } catch (err) {
+    res
+      .status(err.status || 500)
+      .json({ success: false, message: err.message });
+  }
 };
 
 export const verifyEmail = async (req, res) => {
@@ -147,10 +151,15 @@ export const addNewAdmin = async (req, res, next) => {
 
 //Admin Logout
 export const logoutAdmin = async (req, res, next) => {
-  res.status(200).cookie('adminToken', '', COOKIE_OPTIONS).json({
-    success: true,
-    message: 'Admin logged out!',
-  });
+  try {
+    await logoutService(req.cookies, 'Admin');
+    clearTokenCookies('Admin', res);
+    res.status(200).json({ success: true, message: 'Admin logged out' });
+  } catch (err) {
+    res
+      .status(err.status || 500)
+      .json({ success: false, message: err.message });
+  }
 };
 
 /*----------------------------------Profile-------------------------------------*/
@@ -230,5 +239,35 @@ export const getMe = async (req, res) => {
       success: false,
       message: error.message,
     });
+  }
+};
+
+// ─── Refresh token ────────────────────────────────────────────────────────────
+
+export const refreshToken = async (req, res) => {
+  try {
+    const { newAccessToken, role, user } = await refreshAccessTokenService(
+      req.cookies,
+    );
+
+    const cookieName = COOKIE_NAMES[role].access;
+
+    // set new access token cookie
+    res
+      .status(200)
+      .cookie(cookieName, newAccessToken, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'None',
+        expires: new Date(Date.now() + 15 * 60 * 1000),
+      })
+      .json({
+        success: true,
+        message: 'Access token refreshed',
+      });
+  } catch (err) {
+    res
+      .status(err.status || 500)
+      .json({ success: false, message: err.message });
   }
 };

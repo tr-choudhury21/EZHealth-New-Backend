@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const DoctorSchema = new mongoose.Schema(
   {
@@ -18,6 +19,8 @@ const DoctorSchema = new mongoose.Schema(
     role: { type: String, default: 'Doctor' },
     averageRating: { type: Number, default: 0, min: 0, max: 5 },
     totalReviews: { type: Number, default: 0 },
+    refreshTokenHash: { type: String, default: null, select: false },
+    refreshTokenExpire: { type: Date, default: null },
   },
   { timestamps: true },
 );
@@ -32,6 +35,26 @@ DoctorSchema.pre('save', async function (next) {
 // Compare passwords
 DoctorSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
+};
+
+//generate refresh token
+
+DoctorSchema.methods.generateRefreshToken = function () {
+  const token = crypto.randomBytes(40).toString('hex');
+
+  this.refreshTokenHash = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  this.refreshTokenExpire = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  return token;
+};
+
+DoctorSchema.methods.clearRefreshToken = function () {
+  this.refreshTokenHash = null;
+  this.refreshTokenExpire = null;
 };
 
 export default mongoose.model('Doctor', DoctorSchema);

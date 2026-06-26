@@ -37,10 +37,19 @@ const authenticate = (cookieName, findUser, requiredRole) => {
       next();
     } catch (error) {
       // jwt.verify throws if token is expired or tampered
+      // Tell frontend to attempt refresh
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          message: 'Access token expired',
+          shouldRefresh: true, // ← frontend uses this flag
+        });
+      }
+
       return res.status(401).json({
         success: false,
-        message: 'Invalid or expired token',
-        error: error.message,
+        message: 'Invalid token',
+        shouldRefresh: false,
       });
     }
   };

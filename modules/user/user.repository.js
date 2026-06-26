@@ -17,6 +17,13 @@ export const createUser = async (data) => {
   return await User.create(data);
 };
 
+export const findUserByRefreshToken = async (hashedToken) => {
+  return await User.findOne({
+    refreshTokenHash: hashedToken,
+    refreshTokenExpire: { $gt: new Date() },
+  }).select('+refreshTokenHash +refreshTokenExpire');
+};
+
 // ─── Doctor ──────────────────────────────────────────────────────────────────
 
 export const findDoctorByEmail = async (email) => {
@@ -25,6 +32,13 @@ export const findDoctorByEmail = async (email) => {
 
 export const findDoctorById = async (id) => {
   return await Doctor.findById(id).select('-password');
+};
+
+export const findDoctorByRefreshToken = async (hashedToken) => {
+  return await Doctor.findOne({
+    refreshTokenHash: hashedToken,
+    refreshTokenExpire: { $gt: new Date() },
+  }).select('+refreshTokenHash +refreshTokenExpire');
 };
 
 // ─── Appointments ─────────────────────────────────────────────────────────────

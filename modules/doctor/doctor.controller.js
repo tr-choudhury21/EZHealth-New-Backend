@@ -56,10 +56,13 @@ export const loginDoctor = async (req, res) => {
 };
 
 export const logoutDoctor = (req, res) => {
-  res.status(200).cookie('doctorToken', '', COOKIE_OPTIONS).json({
-    success: true,
-    message: 'Doctor logged out!',
-  });
+try {
+    await logoutService(req.cookies, "Doctor");
+    clearTokenCookies("Doctor", res);
+    res.status(200).json({ success: true, message: "Doctor logged out" });
+  } catch (err) {
+    res.status(err.status || 500).json({ success: false, message: err.message });
+  }
 };
 
 // ─── Admin Actions ────────────────────────────────────────────────────────────

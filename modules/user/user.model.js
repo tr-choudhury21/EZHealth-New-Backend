@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 
 const UserSchema = new mongoose.Schema(
   {
@@ -21,6 +22,10 @@ const UserSchema = new mongoose.Schema(
     // Password reset
     resetPasswordToken: { type: String, default: null },
     resetPasswordExpire: { type: Date, default: null },
+
+    //Refresh Token
+    refreshTokenHash: { type: String, default: null, select: false },
+    refreshTokenExpire: { type: Date, default: null },
   },
   { timestamps: true },
 );
@@ -65,6 +70,27 @@ UserSchema.methods.generatePasswordResetToken = function () {
   this.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
   return token; // return unhashed token (sent in email)
+};
+
+// Add method to generate refresh token
+UserSchema.methods.generateRefreshToken = function () {
+  const token = crypto.randomBytes(40).toString('hex');
+
+  this.refreshTokenHash = crypto
+    .createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  // sliding expiry — 7 days from now
+  this.refreshTokenExpire = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  return token; // plain token goes in cookie
+};
+
+// Add method to clear refresh token (logout)
+UserSchema.methods.clearRefreshToken = function () {
+  this.refreshTokenHash = null;
+  this.refreshTokenExpire = null;
 };
 
 export default mongoose.model('User', UserSchema);

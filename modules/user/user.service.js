@@ -6,14 +6,16 @@ import {
   findDoctorById,
   findAppointmentsByPatientId,
   findPrescriptionsByPatientId,
+  findUserByRefreshToken,
+  findDoctorByRefreshToken,
 } from './user.repository.js';
 import crypto from 'crypto';
-import { sendEmail } from '../utils/email.js';
+import { sendEmail } from '../../utils/email.js';
 import {
   verificationEmailTemplate,
   passwordResetEmailTemplate,
-} from '../utils/emailTemplates.js';
-
+} from '../../utils/emailTemplates.js';
+import { generateAccessToken, COOKIE_NAMES } from '../../utils/jwtToken.js';
 import jwt from 'jsonwebtoken';
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -216,4 +218,88 @@ export const verifyTokenAndGetUser = async (token, role) => {
   if (!user) throw { status: 404, message: 'User not found' };
 
   return { user, role };
+};
+
+// ─── Refresh access token ─────────────────────────────────────────────────────
+
+export const refreshAccessTokenService = async (cookies) => {
+  // find which refresh token cookie exists
+  let refreshToken, role, user;
+
+  if (cookies.adminRefreshToken) {
+    refreshToken = cookies.adminRefreshToken;
+    role = 'Admin';
+  } else if (cookies.patientRefreshToken) {
+    refreshToken = cookies.patientRefreshToken;
+    role = 'Patient';
+  } else if (cookies.doctorRefreshToken) {
+    refreshToken = cookies.doctorRefreshToken;
+    role = 'Doctor';
+  }
+
+  if (!refreshToken) {
+    throw {
+      status: 401,
+      message: 'No refresh token found. Please log in again.',
+    };
+  }
+
+  // hash incoming token to compare with DB
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(refreshToken)
+    .digest('hex');
+
+  // find user by hashed token
+  if (role === 'Doctor') {
+    user = await findDoctorByRefreshToken(hashedToken);
+  } else {
+    user = await findUserByRefreshToken(hashedToken);
+  }
+
+  if (!user) {
+    throw {
+      status: 401,
+      message: 'Refresh token is invalid or expired. Please log in again.',
+    };
+  }
+
+  // sliding expiry — reset refresh token expiry on every use
+  user.refreshTokenExpire = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  await user.save({ validateBeforeSave: false });
+
+  // generate new short-lived access token
+  const newAccessToken = generateAccessToken(user._id);
+
+  return { newAccessToken, role, user };
+};
+
+// ─── Logout — revoke refresh token ───────────────────────────────────────────
+
+export const logoutService = async (cookies, role) => {
+  let refreshToken;
+
+  if (role === 'Admin') refreshToken = cookies.adminRefreshToken;
+  if (role === 'Patient') refreshToken = cookies.patientRefreshToken;
+  if (role === 'Doctor') refreshToken = cookies.doctorRefreshToken;
+
+  if (!refreshToken) return; // already logged out
+
+  const hashedToken = crypto
+    .createHash('sha256')
+    .update(refreshToken)
+    .digest('hex');
+
+  // find and invalidate
+  let user;
+  if (role === 'Doctor') {
+    user = await findDoctorByRefreshToken(hashedToken);
+  } else {
+    user = await findUserByRefreshToken(hashedToken);
+  }
+
+  if (user) {
+    user.clearRefreshToken();
+    await user.save({ validateBeforeSave: false });
+  }
 };
